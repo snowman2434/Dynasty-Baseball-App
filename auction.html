@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DraftDay — Auction Room</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-primary:#ffffff;--bg-secondary:#f5f5f4;--bg-tertiary:#f0ede8;
+  --bg-info:#eff6ff;--bg-success:#f0fdf4;--bg-warning:#fffbeb;--bg-danger:#fef2f2;
+  --text-primary:#141210;--text-secondary:#6b6460;--text-info:#1e40af;
+  --text-success:#166534;--text-warning:#92400e;--text-danger:#991b1b;
+  --border-tertiary:rgba(20,18,16,0.10);--border-secondary:rgba(20,18,16,0.20);
+  --border-info:#bfdbfe;--border-success:#bbf7d0;
+  --radius-md:8px;--radius-lg:12px;
+  --accent:#C94B1A;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg-primary:#1c1917;--bg-secondary:#292524;--bg-tertiary:#0c0a09;
+  --bg-info:#1e3a5f;--bg-success:#14532d;--bg-warning:#451a03;--bg-danger:#450a0a;
+  --text-primary:#fafaf9;--text-secondary:#a8a29e;--text-info:#93c5fd;
+  --text-success:#86efac;--text-warning:#fcd34d;--text-danger:#fca5a5;
+  --border-tertiary:rgba(250,250,249,0.10);--border-secondary:rgba(250,250,249,0.20);
+}}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg-tertiary);color:var(--text-primary);min-height:100vh}
+.screen{display:none}.screen.active{display:block}
+.logo{font-size:17px;font-weight:500;letter-spacing:.03em}.logo span{color:var(--accent)}
+.btn{padding:8px 16px;border-radius:var(--radius-md);font-size:13px;font-weight:500;cursor:pointer;border:.5px solid var(--border-secondary);background:var(--bg-primary);color:var(--text-primary);transition:background .15s,transform .1s}
+.btn:hover{background:var(--bg-secondary)}.btn:active{transform:scale(.98)}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}.btn-accent:hover{background:#a83b13}
+.btn-sm{padding:5px 12px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px;border-radius:var(--radius-md);cursor:pointer;border:.5px solid var(--border-secondary);background:transparent;color:var(--text-secondary)}
+.btn-xs:hover{background:var(--bg-secondary)}
+.card{background:var(--bg-primary);border:.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:14px}
+.clabel{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px}
+.sdiv{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);padding:10px 0 4px;border-top:.5px solid var(--border-tertiary);margin-top:4px}
+.sdiv.first{border-top:none;padding-top:0;margin-top:0}
+.fg{margin-bottom:12px}.fg>label{display:block;font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em}
+.fg input,.fg select{width:100%;padding:8px 10px;font-size:13px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary)}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.srow{display:flex;align-items:center;gap:8px}.srow input[type=range]{flex:1}
+.sval{font-size:13px;font-weight:500;min-width:48px;text-align:right;color:var(--text-primary)}
+.hint{font-size:11px;color:var(--text-secondary);margin-top:3px}
+.mode-toggle{display:grid;grid-template-columns:1fr 1fr;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);overflow:hidden;margin-bottom:0}
+.mbtn{padding:10px 14px;cursor:pointer;border:none;background:var(--bg-primary);color:var(--text-secondary);text-align:left;line-height:1.3}
+.mbtn .mt{font-size:13px;font-weight:500;display:block}.mbtn .md{font-size:11px;margin-top:1px;display:block;opacity:.7}
+.mbtn.active{background:var(--bg-secondary)}.mbtn.active .mt{color:var(--accent)}
+.step-bar{display:flex;align-items:center;margin-bottom:20px}
+.si{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--text-secondary);cursor:pointer;padding:4px 0}
+.si.active{color:var(--accent)}.snum{width:20px;height:20px;border-radius:50%;border:.5px solid var(--border-secondary);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0}
+.si.active .snum{background:var(--accent);color:#fff;border-color:var(--accent)}
+.si.done .snum{background:var(--bg-success);color:var(--text-success);border-color:transparent}
+.ssep{flex:1;height:.5px;background:var(--border-tertiary);margin:0 6px}
+.wnav{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:14px;border-top:.5px solid var(--border-tertiary)}
+.pos-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px}
+.pos-card{border:.5px solid var(--border-secondary);border-radius:var(--radius-md);padding:8px 6px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;user-select:none}
+.pos-card:hover{background:var(--bg-secondary)}
+.pos-card.active{border-color:var(--accent);background:rgba(201,75,26,.06)}
+.pos-card .pc-name{font-size:12px;font-weight:500;color:var(--text-secondary)}
+.pos-card.active .pc-name{color:var(--accent)}
+.pos-card .pc-count{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px}
+.pos-card .pc-count button{width:18px;height:18px;border-radius:50%;border:.5px solid var(--border-secondary);background:var(--bg-primary);color:var(--text-primary);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.pos-card .pc-count button:hover{background:var(--bg-secondary)}
+.pos-card .pc-count span{font-size:13px;font-weight:500;min-width:16px;text-align:center;color:var(--text-primary)}
+.pos-total{font-size:12px;color:var(--text-secondary);text-align:right;padding-top:6px}
+.pos-total strong{color:var(--text-primary)}
+.team-edit-row{display:grid;grid-template-columns:10px 1fr 70px 52px 52px;gap:8px;align-items:center;padding:8px 0;border-bottom:.5px solid var(--border-tertiary)}
+.team-edit-row:last-child{border-bottom:none}
+.team-edit-row input{padding:6px 9px;font-size:12px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);min-width:0}
+.you-btn{font-size:10px;padding:4px 6px;border-radius:var(--radius-md);cursor:pointer;border:.5px solid var(--border-secondary);background:transparent;color:var(--text-secondary);white-space:nowrap;width:100%}
+.you-btn.active{background:var(--bg-info);color:var(--text-info);border-color:var(--border-info)}
+.kpr-layout{display:grid;grid-template-columns:150px 1fr;gap:14px}
+.ktitem{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:var(--radius-md);cursor:pointer;font-size:12px;font-weight:500}
+.ktitem:hover{background:var(--bg-secondary)}.ktitem.active{background:var(--bg-secondary);outline:.5px solid var(--border-secondary)}
+.kdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.kadd{display:grid;grid-template-columns:1fr 60px auto;gap:7px;align-items:center;margin-bottom:10px}
+.kadd select,.kadd input{padding:6px 9px;font-size:12px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary)}
+.kitem{display:flex;align-items:center;gap:7px;padding:6px 9px;background:var(--bg-secondary);border-radius:var(--radius-md);font-size:12px;margin-bottom:4px}
+.kitem .kn{flex:1;font-weight:500}.kitem .kpr{color:var(--accent);font-weight:500}
+.kbud{font-size:11px;color:var(--text-secondary);margin-bottom:8px}
+.kbud .eff{color:var(--accent);font-weight:500}
+.lobby-wrap{max-width:920px;margin:0 auto;padding:14px}
+.ltop{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.lmeta{font-size:11px;color:var(--text-secondary);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mpill{font-size:10px;padding:2px 8px;border-radius:var(--radius-md);font-weight:500}
+.mpill.regular{background:var(--bg-info);color:var(--text-info)}
+.mpill.slow{background:var(--bg-warning);color:var(--text-warning)}
+.team-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.tc{background:var(--bg-primary);border:.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:12px}
+.tc.ytc{border-color:var(--accent)}
+.tc-head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.tc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.tc-name{font-size:13px;font-weight:500;flex:1}
+.ytag{font-size:9px;background:var(--bg-info);color:var(--text-info);padding:2px 6px;border-radius:var(--radius-md)}
+.tc-bud{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);margin-bottom:7px;padding-bottom:7px;border-bottom:.5px solid var(--border-tertiary)}
+.krow{display:flex;justify-content:space-between;font-size:11px;padding:2px 0}
+.krow .kp{color:var(--accent);font-weight:500}
+.spanel{background:var(--bg-primary);border:.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:14px;margin-bottom:14px}
+.stabs{display:flex;border-bottom:.5px solid var(--border-tertiary);margin-bottom:14px}
+.stab{padding:7px 12px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px}
+.stab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.stc{display:none}.stc.active{display:block}
+.topbar{background:var(--bg-primary);border-bottom:.5px solid var(--border-tertiary);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.tmeta{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text-secondary);flex-wrap:wrap}
+.badge{background:var(--bg-success);color:var(--text-success);padding:2px 7px;border-radius:var(--radius-md);font-size:10px;font-weight:500}
+.budget-bar{display:grid;gap:3px;padding:7px 14px;background:var(--bg-primary);border-bottom:.5px solid var(--border-tertiary)}
+.bitem{text-align:center;font-size:10px}.bname{color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bamt{font-weight:500;font-size:11px;color:var(--text-primary)}
+.bitem.you .bname{color:var(--text-info)}.bitem.you .bamt{color:var(--accent)}
+.main-g{display:grid;grid-template-columns:1fr 1fr 280px;gap:10px;padding:10px;align-items:start}
+.acol{display:flex;flex-direction:column;gap:10px}
+.block-card{background:var(--bg-primary);border:.5px solid var(--border-tertiary);padding:8px 10px;border-left:3px solid var(--accent);border-radius:0 var(--radius-lg) var(--radius-lg) 0}
+.block-card.hot{border-left-color:#E24B4A}
+.block-card.winning{background:#f0fdf4;border-color:#bbf7d0;border-left-color:#1D9E75}
+.pname{font-size:12px;font-weight:500;line-height:1.1;color:var(--text-primary)}
+.psub{font-size:9px;color:var(--text-secondary);margin-top:1px}
+.pos-badge{display:inline-block;background:var(--bg-secondary);border:.5px solid var(--border-secondary);padding:1px 6px;border-radius:var(--radius-md);font-size:10px;font-weight:500;color:var(--text-secondary);margin-right:3px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:9px}
+.stat-box{background:var(--bg-secondary);border-radius:var(--radius-md);padding:5px 7px;text-align:center}
+.stat-val{font-size:13px;font-weight:500;color:var(--text-primary)}.stat-lbl{font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em}
+.bid-section{display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap}
+.cbid{font-size:17px;font-weight:500;line-height:1}
+.bmeta{font-size:9px;color:var(--text-secondary)}.bmeta strong{color:var(--text-primary);font-weight:500}
+.twrap{margin-left:auto;text-align:right}.tnum{font-size:12px;font-weight:500}
+.tlbl{font-size:8px;color:var(--text-secondary);text-transform:uppercase}
+.tbar-bg{background:var(--bg-secondary);border-radius:2px;height:2px;margin-bottom:0;overflow:hidden}
+.tbar{height:3px;background:var(--accent);border-radius:2px}
+.bid-controls{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.bid-controls input[type=number]{width:72px;padding:5px 7px;font-size:12px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary)}
+.nform{display:flex;flex-direction:column;gap:7px}
+.nform select,.nform input{padding:7px 9px;font-size:12px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);width:100%}
+.nform .r2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.nom-search-wrap{position:relative}
+.nom-search-wrap input{width:100%;padding:7px 9px;font-size:12px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);box-sizing:border-box}
+.nom-dropdown{display:none;position:absolute;left:0;right:0;top:100%;margin-top:2px;background:var(--bg-primary);border:.5px solid var(--border-secondary);border-radius:var(--radius-md);max-height:180px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.nom-dropdown.open{display:block}
+.nom-opt{padding:6px 10px;font-size:12px;cursor:pointer;color:var(--text-primary)}
+.nom-opt:hover,.nom-opt.selected{background:var(--bg-secondary)}
+.nom-opt .nom-opt-meta{font-size:10px;color:var(--text-secondary);margin-left:4px}
+.nom-status{font-size:11px;padding:5px 9px;border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-secondary);margin-bottom:5px;display:flex;align-items:center;justify-content:space-between}
+.slot-dots{display:flex;gap:3px}
+.sdot{width:9px;height:9px;border-radius:50%;border:.5px solid var(--border-secondary)}
+.sdot.used{background:var(--accent);border-color:var(--accent)}
+.sdot.avail{background:var(--bg-success);border-color:var(--border-success)}
+.qitem{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:var(--bg-secondary);border-radius:var(--radius-md);font-size:11px;margin-bottom:4px}
+.qn{font-weight:500;color:var(--text-primary)}.qm{color:var(--text-secondary);font-size:10px}
+.trow{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:var(--radius-md);font-size:11px}
+.trow:hover{background:var(--bg-secondary)}
+.tdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}.tn{flex:1;font-weight:500;color:var(--text-primary)}
+.trow.you-r{background:var(--bg-info)}.trow.you-r .tn{color:var(--text-info)}
+.me-tag{font-size:9px;background:var(--bg-info);color:var(--text-info);padding:1px 5px;border-radius:var(--radius-md);margin-left:3px}
+.kbadge{font-size:9px;background:var(--bg-warning);color:var(--text-warning);padding:1px 5px;border-radius:var(--radius-md);margin-left:2px}
+.sold-wrap{display:flex;flex-direction:column;max-height:180px;overflow-y:auto}
+.si2{display:flex;justify-content:space-between;align-items:center;padding:5px 7px;font-size:11px;border-bottom:.5px solid var(--border-tertiary)}
+.si2:last-child{border-bottom:none}
+.sp2{font-weight:500;color:var(--text-primary)}.sm2{font-size:10px;color:var(--text-secondary)}
+.sprice{font-weight:500;color:var(--accent);font-size:11px}
+.empty{font-size:11px;color:var(--text-secondary);text-align:center;padding:10px 0}
+.roster-panel{background:var(--bg-primary);border:.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:14px}
+.roster-select{width:100%;padding:6px 10px;font-size:12px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);margin-bottom:10px}
+.roster-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);margin-bottom:8px;padding-bottom:8px;border-bottom:.5px solid var(--border-tertiary)}
+.roster-meta .spent{color:var(--accent);font-weight:500}
+.roster-slots{display:flex;flex-direction:column;gap:2px;max-height:380px;overflow-y:auto}
+.slot-row{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:var(--radius-md)}
+.slot-row.filled{background:var(--bg-secondary)}
+.slot-row:hover{background:var(--bg-secondary)}
+.slot-pos-tag{font-size:9px;font-weight:500;min-width:34px;text-align:center;padding:2px 5px;border-radius:var(--radius-md);background:var(--bg-secondary);border:.5px solid var(--border-secondary);color:var(--text-secondary);flex-shrink:0}
+.slot-row.filled .slot-pos-tag{background:rgba(201,75,26,.08);border-color:rgba(201,75,26,.2);color:var(--accent)}
+.slot-player-name{flex:1;font-size:12px;font-weight:500;color:var(--text-primary)}
+.slot-player-team{font-size:10px;color:var(--text-secondary)}
+.slot-price{font-size:11px;font-weight:500;color:var(--accent);min-width:28px;text-align:right}
+.slot-empty-label{flex:1;font-size:11px;color:var(--text-secondary);font-style:italic}
+.section-group-label{font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);padding:6px 7px 2px;margin-top:2px}
+.apanel{background:var(--bg-primary);border:.5px solid var(--border-tertiary);border-radius:var(--radius-lg);padding:14px}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ==================== SETUP WIZARD ==================== -->
+<div class="screen active" id="setup-screen">
+<div style="max-width:540px;margin:0 auto;padding:20px 16px">
+  <a href="index.html" class="logo" style="font-size:20px;margin-bottom:18px;display:block;text-decoration:none;color:inherit">Draft<span>Day</span></a>
+  <div class="step-bar" id="step-bar"></div>
+
+  <!-- Step 1: Auction -->
+  <div id="step1">
+    <div class="sdiv first">Auction type</div>
+    <div style="margin-top:10px;margin-bottom:14px">
+      <div class="mode-toggle">
+        <button class="mbtn active" id="mb-regular" onclick="setMode('regular')"><span class="mt">Regular auction</span><span class="md">Live · timers in seconds</span></button>
+        <button class="mbtn" id="mb-slow" onclick="setMode('slow')"><span class="mt">Slow auction</span><span class="md">Async · timers in hours</span></button>
+      </div>
+    </div>
+    <div class="sdiv">Timer settings</div>
+    <div style="margin-top:10px">
+      <div class="fg"><label>Nomination timer</label>
+        <div class="srow"><input type="range" id="s-nom" min="10" max="120" step="5" value="30" oninput="onSlide('nom')"><span class="sval" id="sv-nom">30s</span></div>
+        <div class="hint">Initial window when a player is nominated</div>
+      </div>
+      <div class="fg"><label>Bid reset timer</label>
+        <div class="srow"><input type="range" id="s-bid" min="5" max="60" step="5" value="30" oninput="onSlide('bid')"><span class="sval" id="sv-bid">30s</span></div>
+        <div class="hint">Resets to this whenever a new bid is placed</div>
+      </div>
+    </div>
+    <div class="sdiv">League defaults</div>
+    <div class="fr3" style="margin-top:10px">
+      <div class="fg"><label>Teams</label><input id="cfg-nteams" type="number" min="2" max="20" value="10" oninput="nTeamsChanged()"></div>
+      <div class="fg"><label>Budget ($)</label><input id="cfg-budget" type="number" min="50" max="2000" value="260"></div>
+      <div class="fg"><label>Nom slots</label><input id="cfg-nomslots" type="number" min="1" max="5" value="1"></div>
+    </div>
+  </div>
+
+  <!-- Step 2: Positions -->
+  <div id="step2" style="display:none">
+    <div class="sdiv first">Roster positions</div>
+    <div style="margin-top:10px;margin-bottom:6px;font-size:11px;color:var(--text-secondary)">Click to toggle a position. Use + / − to set slot count.</div>
+    <div class="pos-grid" id="pos-grid"></div>
+    <div class="pos-total" id="pos-total"></div>
+  </div>
+
+  <!-- Step 3: Teams -->
+  <div id="step3" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="sdiv first" style="margin-bottom:0">Teams</div>
+      <button class="btn-xs" onclick="resetBudgets()">Reset budgets</button>
+    </div>
+    <div style="display:grid;grid-template-columns:10px 1fr 68px 50px 52px;gap:8px;padding:0 0 5px;font-size:9px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)">
+      <span></span><span>Name</span><span>Budget</span><span>Slots</span><span>You</span>
+    </div>
+    <div id="team-editor"></div>
+  </div>
+
+  <!-- Step 4: Keepers -->
+  <div id="step4" style="display:none">
+    <div class="sdiv first" style="margin-bottom:12px">Assign keepers</div>
+    <div class="kpr-layout">
+      <div id="kt-list" style="display:flex;flex-direction:column;gap:3px"></div>
+      <div id="kpr-panel"><div class="empty">Select a team.</div></div>
+    </div>
+  </div>
+
+  <div class="wnav">
+    <button id="btn-back" class="btn" onclick="prevStep()" style="display:none">Back</button>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button id="btn-next" class="btn btn-accent" onclick="nextStep()">Next: Positions →</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ==================== LOBBY ==================== -->
+<div class="screen" id="lobby-screen">
+<div class="lobby-wrap">
+  <div class="ltop">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <a href="index.html" class="logo" style="font-size:18px;text-decoration:none;color:inherit">Draft<span>Day</span></a>
+      <div class="lmeta" id="lobby-meta"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="toggleLobbySettings()">Edit settings</button>
+      <button class="btn btn-sm btn-accent" onclick="enterAuction()">Start auction →</button>
+    </div>
+  </div>
+  <div id="lobby-settings" style="display:none" class="spanel">
+    <div class="stabs">
+      <div class="stab active" id="lt-auction" onclick="setLT('auction')">Auction</div>
+      <div class="stab" id="lt-positions" onclick="setLT('positions')">Positions</div>
+      <div class="stab" id="lt-teams" onclick="setLT('teams')">Teams</div>
+      <div class="stab" id="lt-keepers" onclick="setLT('keepers')">Keepers</div>
+    </div>
+    <div class="stc active" id="lc-auction">
+      <div class="mode-toggle" style="margin-bottom:12px">
+        <button class="mbtn" id="lmb-regular" onclick="setMode('regular');syncLobbyAuction()"><span class="mt">Regular</span><span class="md">Seconds</span></button>
+        <button class="mbtn" id="lmb-slow" onclick="setMode('slow');syncLobbyAuction()"><span class="mt">Slow</span><span class="md">Hours</span></button>
+      </div>
+      <div class="fg"><label>Nomination timer</label><div class="srow"><input type="range" id="l-nom" min="10" max="120" step="5" value="30" oninput="onLSlide('nom')"><span class="sval" id="lsv-nom">30s</span></div></div>
+      <div class="fg"><label>Bid reset timer</label><div class="srow"><input type="range" id="l-bid" min="5" max="60" step="5" value="30" oninput="onLSlide('bid')"><span class="sval" id="lsv-bid">30s</span></div></div>
+    </div>
+    <div class="stc" id="lc-positions">
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px">Changes apply when you start the auction.</div>
+      <div class="pos-grid" id="l-pos-grid"></div>
+      <div class="pos-total" id="l-pos-total"></div>
+    </div>
+    <div class="stc" id="lc-teams">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--text-secondary)">Edit names and budgets</span>
+        <button class="btn-xs" onclick="resetBudgets();renderTeamEditor('l-team-ed');renderLobbyCards()">Reset</button>
+      </div>
+      <div style="display:grid;grid-template-columns:10px 1fr 68px 50px 52px;gap:8px;padding:0 0 5px;font-size:9px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)"><span></span><span>Name</span><span>Budget</span><span>Slots</span><span>You</span></div>
+      <div id="l-team-ed"></div>
+    </div>
+    <div class="stc" id="lc-keepers">
+      <div class="kpr-layout"><div id="lkt-list" style="display:flex;flex-direction:column;gap:3px"></div><div id="lkpr-panel"><div class="empty">Select a team.</div></div></div>
+    </div>
+  </div>
+  <div class="team-cards" id="lobby-cards"></div>
+</div>
+</div>
+
+<!-- ==================== AUCTION ROOM ==================== -->
+<div class="screen" id="auction-screen">
+<div class="topbar">
+  <a href="index.html" class="logo" style="text-decoration:none;color:inherit">Draft<span>Day</span></a>
+  <div class="tmeta">
+    <span id="at-league">10 teams</span><span class="badge">Live</span>
+    <span class="mpill regular" id="at-mode">Regular</span>
+    <span id="at-budget" style="font-weight:500;color:var(--text-primary)"></span>
+    <span id="at-name"></span>
+    <button class="btn btn-sm" onclick="toggleAP()">Timers</button>
+  </div>
+</div>
+<div class="budget-bar" id="budget-bar"></div>
+<div class="main-g">
+  <div class="acol" id="left-col">
+    <div class="card" id="no-block"><div class="empty" style="padding:18px 0">No players on the block yet.</div></div>
+  </div>
+  <div class="acol">
+    <div class="card">
+      <div class="clabel">Nominate</div>
+      <div id="nom-status" class="nom-status"><span id="nom-st-txt"></span><div class="slot-dots" id="nom-dots"></div></div>
+      <div class="nform">
+        <div class="nom-search-wrap" id="nom-search-wrap">
+          <input type="text" id="nom-search" placeholder="Search player…" autocomplete="off" oninput="filterNomDropdown()" onfocus="openNomDropdown()" onblur="setTimeout(closeNomDropdown,150)">
+          <div class="nom-dropdown" id="nom-dropdown"></div>
+        </div>
+        <input type="hidden" id="nom-player">
+        <div class="r2"><input id="nom-bid" type="number" min="1" value="1"><button class="btn btn-accent btn-sm" id="nom-btn" onclick="nominatePlayer()">Nominate</button></div>
+      </div>
+    </div>
+    <div class="card"><div class="clabel">Up next</div><div id="q-list"><div class="empty">Queue empty.</div></div></div>
+    <div class="card"><div class="clabel">Sold</div><div class="sold-wrap" id="sold-list"><div class="empty">No sales yet.</div></div></div>
+  </div>
+  <div class="acol">
+    <div class="apanel" id="ap" style="display:none">
+      <div class="clabel">Timer settings</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">
+        <div><div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:4px">Nomination</div><div class="srow"><input type="range" id="ap-nom" min="10" max="120" step="5" value="30" oninput="document.getElementById('apsv-nom').textContent=this.value+'s'"><span class="sval" id="apsv-nom">30s</span></div></div>
+        <div><div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:4px">Bid reset</div><div class="srow"><input type="range" id="ap-bid" min="5" max="60" step="5" value="30" oninput="document.getElementById('apsv-bid').textContent=this.value+'s'"><span class="sval" id="apsv-bid">30s</span></div></div>
+      </div>
+      <div style="display:flex;gap:7px"><button class="btn btn-accent btn-sm" style="flex:1" onclick="applyAP()">Apply</button><button class="btn btn-sm" style="flex:1" onclick="toggleAP()">Cancel</button></div>
+    </div>
+    <div class="roster-panel">
+      <div class="clabel">Roster</div>
+      <select class="roster-select" id="roster-sel" onchange="viewTeam=+this.value;renderRoster()"></select>
+      <div id="roster-meta" class="roster-meta"></div>
+      <div class="roster-slots" id="roster-slots"></div>
+    </div>
+    <div class="card"><div class="clabel">Teams</div><div id="a-teams"></div></div>
+  </div>
+</div>
+</div>
+
+</div>
+<script>
+const COLORS=['#C94B1A','#185FA5','#1D9E75','#BA7517','#993556','#534AB7','#A32D2D','#3B6D11','#0C447C','#5F5E5A','#2D8FA3','#7A5C2E','#6B3A8C','#2E6B45','#A05A2C','#3A5F8C','#8C3A5A','#5A8C3A','#8C7A2E','#2E3A8C'];
+const DNAMES=['My Team','BrewCrew','Sluggers Inc','The Bullpen','Diamond Dogs','Bases Loaded','Yard Work','K Street','The Rotation','Error 404','Dingers Only','The Closer','Shift Busters','Small Ball','Launch Angle','The Rebuild','Prospect Hype','Trade Bait','Buy Low','Sell High'];
+const ALL_PLAYERS=[
+  {name:'Shohei Ohtani',pos:'DH',team:'LAD',hr:44,avg:.310,rbi:130,sb:20},
+  {name:'Freddie Freeman',pos:'1B',team:'LAD',hr:22,avg:.282,rbi:89,sb:5},
+  {name:'Yordan Alvarez',pos:'OF',team:'HOU',hr:35,avg:.307,rbi:111,sb:2},
+  {name:'Gunnar Henderson',pos:'SS',team:'BAL',hr:37,avg:.281,rbi:103,sb:15},
+  {name:'Juan Soto',pos:'OF',team:'NYM',hr:28,avg:.288,rbi:109,sb:8},
+  {name:'Ronald Acuna Jr.',pos:'OF',team:'ATL',hr:19,avg:.302,rbi:65,sb:33},
+  {name:'Corey Seager',pos:'SS',team:'TEX',hr:33,avg:.327,rbi:96,sb:2},
+  {name:'Elly De La Cruz',pos:'SS',team:'CIN',hr:25,avg:.255,rbi:87,sb:67},
+  {name:'Bobby Witt Jr.',pos:'SS',team:'KC',hr:32,avg:.332,rbi:109,sb:35},
+  {name:'Paul Goldschmidt',pos:'1B',team:'STL',hr:22,avg:.268,rbi:89,sb:4},
+  {name:'Pete Alonso',pos:'1B',team:'NYM',hr:36,avg:.240,rbi:107,sb:1},
+  {name:'William Contreras',pos:'C',team:'MIL',hr:21,avg:.267,rbi:79,sb:4},
+  {name:'Adley Rutschman',pos:'C',team:'BAL',hr:20,avg:.272,rbi:82,sb:3},
+  {name:'Spencer Strider',pos:'SP',team:'ATL',era:3.21,k:281,w:20},
+  {name:'Zack Wheeler',pos:'SP',team:'PHI',era:2.87,k:212,w:16},
+  {name:'Tarik Skubal',pos:'SP',team:'DET',era:2.80,k:228,w:18},
+  {name:'Paul Skenes',pos:'SP',team:'PIT',era:1.96,k:170,w:11},
+  {name:'Corbin Burnes',pos:'SP',team:'ARI',era:2.92,k:202,w:15},
+  {name:'Emmanuel Clase',pos:'RP',team:'CLE',era:1.37,sv:45,k:72},
+  {name:'Josh Hader',pos:'RP',team:'HOU',era:1.28,sv:41,k:88},
+  {name:'Tanner Scott',pos:'RP',team:'LAD',era:2.31,sv:28,k:84},
+  {name:'Alex Bregman',pos:'3B',team:'BOS',hr:26,avg:.260,rbi:89,sb:2},
+  {name:'Jose Altuve',pos:'2B',team:'HOU',hr:19,avg:.295,rbi:71,sb:11},
+  {name:'Julio Rodriguez',pos:'OF',team:'SEA',hr:22,avg:.279,rbi:84,sb:26},
+  {name:'Bryce Harper',pos:'1B',team:'PHI',hr:30,avg:.286,rbi:96,sb:3},
+  {name:'Mookie Betts',pos:'OF',team:'LAD',hr:19,avg:.289,rbi:75,sb:12},
+  {name:'Jose Ramirez',pos:'3B',team:'CLE',hr:26,avg:.282,rbi:103,sb:24},
+];
+const POS_OPTIONS=[
+  {pos:'C',def:1,on:true},{pos:'1B',def:1,on:true},{pos:'2B',def:1,on:true},{pos:'SS',def:1,on:true},
+  {pos:'3B',def:1,on:true},{pos:'MI',def:1,on:true},{pos:'CI',def:1,on:true},{pos:'OF',def:3,on:true},
+  {pos:'UTIL',def:1,on:true},{pos:'SP',def:2,on:true},{pos:'RP',def:2,on:true},{pos:'P',def:0,on:false},
+  {pos:'BENCH',def:4,on:true},{pos:'MiLB',def:0,on:false}
+];
+const SLOT_ACCEPTS={C:['C'],'1B':['1B'],'2B':['2B'],SS:['SS'],'3B':['3B'],MI:['2B','SS'],CI:['1B','3B'],OF:['OF'],UTIL:['C','1B','2B','SS','3B','OF','DH'],SP:['SP'],RP:['RP'],P:['SP','RP'],BENCH:['C','1B','2B','SS','3B','OF','DH','SP','RP'],MiLB:['C','1B','2B','SS','3B','OF','DH','SP','RP']};
+const FLEX_SLOTS=new Set(['MI','CI','UTIL','P']);
+const BENCH_SLOTS=new Set(['BENCH','MiLB']);
+const POS_GROUPS={Hitters:['C','1B','2B','SS','3B','MI','CI','OF','UTIL'],Pitchers:['SP','RP','P'],Bench:['BENCH','MiLB']};
+const MC={regular:{nomMin:10,nomMax:120,nomStep:5,nomDef:30,bidMin:5,bidMax:60,bidStep:5,bidDef:30,fmt:v=>v+'s',toSec:v=>v},slow:{nomMin:2,nomMax:24,nomStep:1,nomDef:4,bidMin:1,bidMax:12,bidStep:1,bidDef:2,fmt:v=>v===1?'1 hr':v+' hrs',toSec:v=>v*3600}};
+
+function fmtTimer(sec){if(mode==='slow'){const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}return sec+'s';}
+let mode='regular',nomSec=30,bidSec=30;
+let rosterCfg=POS_OPTIONS.map(p=>({pos:p.pos,count:p.def,active:p.on}));
+let teams=[],myIdx=0,activeKT=0;
+let curStep=1,lobbyTab='auction',lobbyOpen=false;
+let availablePlayers=[],activeBlocks=[],queue=[],soldList=[];
+let viewTeam=0,blockId=0,timerHandle=null;
+
+function cfg(){return MC[mode];}
+function setMode(m){
+  mode=m;const c=cfg();
+  ['mb-regular','mb-slow','lmb-regular','lmb-slow'].forEach(id=>{document.getElementById(id)?.classList.remove('active');});
+  document.getElementById('mb-'+m)?.classList.add('active');document.getElementById('lmb-'+m)?.classList.add('active');
+  [['s-nom','sv-nom',true],['s-bid','sv-bid',false],['l-nom','lsv-nom',true],['l-bid','lsv-bid',false]].forEach(([sid,vid,isNom])=>{
+    const el=document.getElementById(sid),vl=document.getElementById(vid);if(!el||!vl)return;
+    const cc=isNom?{min:c.nomMin,max:c.nomMax,step:c.nomStep,def:c.nomDef}:{min:c.bidMin,max:c.bidMax,step:c.bidStep,def:c.bidDef};
+    el.min=cc.min;el.max=cc.max;el.step=cc.step;el.value=cc.def;vl.textContent=c.fmt(cc.def);
+  });
+  nomSec=c.toSec(c.nomDef);bidSec=c.toSec(c.bidDef);
+}
+function onSlide(t){const c=cfg(),el=document.getElementById('s-'+t),vl=document.getElementById('sv-'+t);if(!el||!vl)return;vl.textContent=c.fmt(+el.value);if(t==='nom')nomSec=c.toSec(+el.value);else bidSec=c.toSec(+el.value);}
+function onLSlide(t){const c=cfg(),el=document.getElementById('l-'+t),vl=document.getElementById('lsv-'+t);if(!el||!vl)return;vl.textContent=c.fmt(+el.value);if(t==='nom')nomSec=c.toSec(+el.value);else bidSec=c.toSec(+el.value);}
+function syncLobbyAuction(){
+  const c=cfg();['lmb-regular','lmb-slow'].forEach(id=>document.getElementById(id)?.classList.remove('active'));document.getElementById('lmb-'+mode)?.classList.add('active');
+  [['l-nom','lsv-nom',true],['l-bid','lsv-bid',false]].forEach(([sid,vid,isNom])=>{const el=document.getElementById(sid),vl=document.getElementById(vid);if(!el||!vl)return;const cc=isNom?{min:c.nomMin,max:c.nomMax,step:c.nomStep}:{min:c.bidMin,max:c.bidMax,step:c.bidStep};el.min=cc.min;el.max=cc.max;el.step=cc.step;const raw=isNom?(mode==='slow'?nomSec/3600:nomSec):(mode==='slow'?bidSec/3600:bidSec);el.value=raw;vl.textContent=c.fmt(raw);});
+}
+function renderPosGrid(gridId,totalId){
+  const el=document.getElementById(gridId);if(!el)return;
+  el.innerHTML=rosterCfg.map(r=>`<div class="pos-card ${r.active?'active':''}" onclick="togglePos('${r.pos}','${gridId}','${totalId}')"><div class="pc-name">${r.pos}</div><div class="pc-count" style="${r.active?'':'visibility:hidden'}"><button onclick="event.stopPropagation();adjPos('${r.pos}',-1,'${gridId}','${totalId}')">−</button><span id="pcc-${gridId}-${r.pos}">${r.count}</span><button onclick="event.stopPropagation();adjPos('${r.pos}',1,'${gridId}','${totalId}')">+</button></div></div>`).join('');
+  renderPosTotal(totalId);
+}
+function renderPosTotal(id){const el=document.getElementById(id);if(!el)return;const t=rosterCfg.filter(r=>r.active).reduce((s,r)=>s+r.count,0);el.innerHTML=`Total roster slots: <strong>${t}</strong>`;}
+function togglePos(pos,g,t){const r=rosterCfg.find(x=>x.pos===pos);if(!r)return;r.active=!r.active;if(r.active&&r.count===0)r.count=1;renderPosGrid(g,t);}
+function adjPos(pos,d,g,t){const r=rosterCfg.find(x=>x.pos===pos);if(!r||!r.active)return;r.count=Math.max(0,r.count+d);if(r.count===0)r.active=false;renderPosGrid(g,t);}
+function nTeamsChanged(){const n=+document.getElementById('cfg-nteams').value||10;while(teams.length<n)teams.push({name:DNAMES[teams.length]||`Team ${teams.length+1}`,budget:260,nomSlots:1,color:COLORS[teams.length%COLORS.length],keepers:[],roster:[],slots:[]});teams.length=n;if(myIdx>=n)myIdx=0;}
+function initTeams(){
+  const n=+document.getElementById('cfg-nteams')?.value||10,bud=+document.getElementById('cfg-budget')?.value||260,ns=+document.getElementById('cfg-nomslots')?.value||1;
+  teams=Array.from({length:n},(_,i)=>({name:teams[i]?.name||DNAMES[i]||`Team ${i+1}`,budget:teams[i]?.budget??bud,nomSlots:teams[i]?.nomSlots??ns,color:COLORS[i%COLORS.length],keepers:teams[i]?.keepers||[],roster:[],slots:[]}));
+  if(myIdx>=n)myIdx=0;
+}
+function resetBudgets(){const b=+document.getElementById('cfg-budget')?.value||260;teams.forEach(t=>t.budget=b);}
+function renderTeamEditor(mountId){
+  const el=document.getElementById(mountId);if(!el)return;
+  el.innerHTML=teams.map((t,i)=>`<div class="team-edit-row"><span style="width:9px;height:9px;border-radius:50%;background:${t.color};display:inline-block;flex-shrink:0"></span><input type="text" value="${t.name}" oninput="teams[${i}].name=this.value" style="min-width:0"><input type="number" value="${t.budget}" min="1" max="9999" oninput="teams[${i}].budget=+this.value" style="min-width:0"><input type="number" value="${t.nomSlots}" min="1" max="5" oninput="teams[${i}].nomSlots=+this.value" style="min-width:0"><button class="you-btn ${i===myIdx?'active':''}" onclick="myIdx=${i};renderTeamEditor('${mountId}')">${i===myIdx?'You':'You?'}</button></div>`).join('');
+}
+function keptNames(){return new Set(teams.flatMap(t=>t.keepers.map(k=>k.name)));}
+function availForKeeper(){const kn=keptNames();return ALL_PLAYERS.filter(p=>!kn.has(p.name));}
+function renderKTList(listId,panelId){
+  const el=document.getElementById(listId);if(!el)return;
+  el.innerHTML=teams.map((t,i)=>`<div class="ktitem ${i===activeKT?'active':''}" onclick="activeKT=${i};renderKTList('${listId}','${panelId}')"><span class="kdot" style="background:${t.color}"></span><span style="flex:1">${t.name}</span><span style="font-size:10px;color:var(--text-secondary)">${t.keepers.length?t.keepers.length+'k':''}</span></div>`).join('');
+  renderKPanel(activeKT,panelId,listId);
+}
+function renderKPanel(idx,panelId,listId){
+  const el=document.getElementById(panelId);if(!el)return;
+  const t=teams[idx],avail=availForKeeper(),total=t.keepers.reduce((s,k)=>s+k.price,0);
+  const krows=t.keepers.length?t.keepers.map((k,ki)=>`<div class="kitem"><span class="kn">${k.name}</span><span style="font-size:10px;color:var(--text-secondary)">${k.pos}</span><span class="kpr">$${k.price}</span><button class="btn-xs" onclick="rmKeeper(${idx},${ki},'${panelId}','${listId}')">×</button></div>`).join(''):'<div class="empty" style="padding:8px 0">No keepers yet.</div>';
+  el.innerHTML=`<div class="kbud">Budget $${t.budget} · Keepers $${total} · Effective <span class="eff">$${t.budget-total}</span></div>${krows}<div class="kadd"><select id="ksel-${panelId}"><option value="">— pick player —</option>${avail.map((p,i)=>`<option value="${i}">${p.name} · ${p.pos}</option>`).join('')}</select><input type="number" id="kprice-${panelId}" placeholder="$" min="1" value="1"><button class="btn btn-sm btn-accent" onclick="addKeeper(${idx},'${panelId}','${listId}')">Add</button></div>`;
+}
+function addKeeper(ti,panelId,listId){const sel=document.getElementById('ksel-'+panelId),prEl=document.getElementById('kprice-'+panelId);const pidx=parseInt(sel?.value);if(isNaN(pidx))return;const price=parseInt(prEl?.value)||1;const avail=availForKeeper();const player=avail[pidx];if(!player)return;if(price>teams[ti].budget){alert('Exceeds budget.');return;}teams[ti].keepers.push({...player,price});renderKTList(listId,panelId);renderLobbyCards();}
+function rmKeeper(ti,ki,panelId,listId){teams[ti].keepers.splice(ki,1);renderKTList(listId,panelId);renderLobbyCards();}
+function buildSlotsForTeam(t){const slots=[];rosterCfg.forEach(r=>{if(!r.active||r.count===0)return;for(let i=0;i<r.count;i++)slots.push({pos:r.pos,player:null,price:null,isKeeper:false});});t.slots=slots;}
+function assignToSlot(t,player,price,isKeeper=false){const pos=player.pos;for(const s of t.slots){if(!s.player&&s.pos===pos){s.player=player;s.price=price;s.isKeeper=isKeeper;return;}}for(const s of t.slots){if(!s.player&&FLEX_SLOTS.has(s.pos)&&SLOT_ACCEPTS[s.pos]?.includes(pos)){s.player=player;s.price=price;s.isKeeper=isKeeper;return;}}for(const s of t.slots){if(!s.player&&BENCH_SLOTS.has(s.pos)){s.player=player;s.price=price;s.isKeeper=isKeeper;return;}}for(const s of t.slots){if(!s.player){s.player=player;s.price=price;s.isKeeper=isKeeper;return;}}t.slots.push({pos:'BENCH',player,price,isKeeper});}
+const STEPS=['Auction','Positions','Teams','Keepers'];
+function renderStepBar(){const el=document.getElementById('step-bar');if(!el)return;el.innerHTML=STEPS.map((s,i)=>{const n=i+1,cls=n===curStep?'active':n<curStep?'done':'';return `<div class="si ${cls}" onclick="tryGo(${n})"><div class="snum">${n<curStep?'✓':n}</div>${s}</div>${i<STEPS.length-1?'<div class="ssep"></div>':''}`}).join('');}
+function tryGo(n){if(n<=curStep)goStep(n);}
+function goStep(n){if(n===2)renderPosGrid('pos-grid','pos-total');if(n===3){initTeams();renderTeamEditor('team-editor');}if(n===4)renderKTList('kt-list','kpr-panel');curStep=n;for(let i=1;i<=4;i++)document.getElementById('step'+i).style.display=i===n?'block':'none';const back=document.getElementById('btn-back'),next=document.getElementById('btn-next');if(back)back.style.display=n>1?'inline-flex':'none';if(next)next.textContent=n===4?'Enter lobby →':n===3?'Next: Keepers →':n===2?'Next: Teams →':'Next: Positions →';renderStepBar();}
+function nextStep(){if(curStep===4)enterLobby();else goStep(curStep+1);}
+function prevStep(){if(curStep>1)goStep(curStep-1);}
+function enterLobby(){initTeams();document.getElementById('setup-screen').classList.remove('active');document.getElementById('lobby-screen').classList.add('active');renderLobbyMeta();renderLobbyCards();syncLobbyAuction();}
+function renderLobbyMeta(){const total=rosterCfg.filter(r=>r.active).reduce((s,r)=>s+r.count,0);document.getElementById('lobby-meta').innerHTML=`<span class="mpill ${mode}">${mode==='slow'?'Slow':'Regular'}</span><span>${teams.length} teams</span><span>${total} roster slots</span>`;}
+function renderLobbyCards(){
+  const el=document.getElementById('lobby-cards');if(!el)return;
+  el.innerHTML=teams.map((t,i)=>{const eff=t.budget-t.keepers.reduce((s,k)=>s+k.price,0),isMe=i===myIdx;const krows=t.keepers.length?t.keepers.map(k=>`<div class="krow"><span>${k.name} <span style="color:var(--text-secondary);font-size:10px">${k.pos}</span></span><span class="kp">$${k.price}</span></div>`).join(''):'<div style="font-size:11px;color:var(--text-secondary)">No keepers</div>';return `<div class="tc ${isMe?'ytc':''}"><div class="tc-head"><span class="tc-dot" style="background:${t.color}"></span><span class="tc-name">${t.name}</span>${isMe?'<span class="ytag">You</span>':''}</div><div class="tc-bud"><span>$${t.budget}</span>${t.keepers.length?`<span>Eff: <strong style="color:var(--accent)">$${eff}</strong></span>`:''}</div>${krows}</div>`;}).join('');
+}
+function toggleLobbySettings(){lobbyOpen=!lobbyOpen;document.getElementById('lobby-settings').style.display=lobbyOpen?'block':'none';if(lobbyOpen)setLT(lobbyTab);}
+function setLT(tab){lobbyTab=tab;['auction','positions','teams','keepers'].forEach(t=>{document.getElementById('lt-'+t)?.classList.toggle('active',t===tab);document.getElementById('lc-'+t)?.classList.toggle('active',t===tab);});if(tab==='positions')renderPosGrid('l-pos-grid','l-pos-total');if(tab==='teams')renderTeamEditor('l-team-ed');if(tab==='keepers')renderKTList('lkt-list','lkpr-panel');if(tab==='auction')syncLobbyAuction();}
+function enterAuction(){
+  const kn=keptNames();availablePlayers=ALL_PLAYERS.filter(p=>!kn.has(p.name));
+  teams.forEach(t=>{t.auctionBudget=t.budget-t.keepers.reduce((s,k)=>s+k.price,0);t.startAuctionBudget=t.auctionBudget;t.nomUsed=0;buildSlotsForTeam(t);t.keepers.forEach(k=>assignToSlot(t,k,k.price,true));});
+  document.getElementById('lobby-screen').classList.remove('active');document.getElementById('auction-screen').classList.add('active');
+  document.getElementById('at-name').textContent=teams[myIdx].name;document.getElementById('at-budget').textContent=`$${teams[myIdx].auctionBudget} left`;document.getElementById('at-league').textContent=`${teams.length}-team league`;
+  populateRosterSel();populatePlayerSelect();renderBudgetBar();renderATeams();renderRoster();renderNomStatus();
+  clearInterval(timerHandle);timerHandle=setInterval(tick,1000);
+  setTimeout(simulateBots,2500);
+}
+function populateRosterSel(){const sel=document.getElementById('roster-sel');if(!sel)return;sel.innerHTML=teams.map((t,i)=>`<option value="${i}">${i===myIdx?t.name+' (you)':t.name}</option>`).join('');sel.value=viewTeam;}
+function renderRoster(){
+  const t=teams[viewTeam];const filled=t.slots.filter(s=>s.player).length,total=t.slots.length,spent=t.slots.filter(s=>s.player).reduce((s,sl)=>s+(sl.price||0),0);
+  const meta=document.getElementById('roster-meta');if(meta)meta.innerHTML=`<span>${filled}/${total} filled · ${total-filled} empty</span><span class="spent">$${spent} spent</span>`;
+  const el=document.getElementById('roster-slots');if(!el)return;
+  let html='';Object.entries(POS_GROUPS).forEach(([grp,positions])=>{const grpSlots=t.slots.filter(s=>positions.includes(s.pos));if(!grpSlots.length)return;html+=`<div class="section-group-label">${grp}</div>`;grpSlots.forEach(s=>{if(s.player){html+=`<div class="slot-row filled"><span class="slot-pos-tag">${s.pos}</span><span class="slot-player-name">${s.player.name}${s.isKeeper?'<span class="kbadge">K</span>':''}</span><span class="slot-player-team">${s.player.team}</span><span class="slot-price">$${s.price}</span></div>`;}else{html+=`<div class="slot-row empty-slot"><span class="slot-pos-tag">${s.pos}</span><span class="slot-empty-label">Empty</span></div>`;}});});
+  el.innerHTML=html||'<div class="empty">No slots configured.</div>';
+}
+function renderBudgetBar(){const el=document.getElementById('budget-bar');if(!el)return;el.style.gridTemplateColumns=`repeat(${teams.length},1fr)`;el.innerHTML=teams.map((t,i)=>`<div class="bitem ${i===myIdx?'you':''}"><div class="bname" title="${t.name}">${t.name}</div><div class="bamt">$${t.auctionBudget}</div></div>`).join('');}
+function renderATeams(){const el=document.getElementById('a-teams');if(!el)return;el.innerHTML=teams.map((t,i)=>{const spent=(t.startAuctionBudget||0)-(t.auctionBudget||0);const pending=activeBlocks.filter(b=>b.bidder===t.name).reduce((s,b)=>s+b.bid,0);const committed=spent+pending;return `<div class="trow ${i===myIdx?'you-r':''}"><span class="tdot" style="background:${t.color}"></span><span class="tn">${t.name}${i===myIdx?'<span class="me-tag">you</span>':''}</span><span style="font-size:10px;color:var(--text-secondary);margin-right:3px">${t.slots.filter(s=>s.player).length}/${t.slots.length}</span><span style="font-size:11px;color:var(--text-secondary)">$${committed}</span></div>`;}).join('');}
+function renderNomStatus(){const t=teams[myIdx],avail=t.nomSlots-t.nomUsed;document.getElementById('nom-st-txt').textContent=`${avail}/${t.nomSlots} slot${t.nomSlots>1?'s':''} available`;document.getElementById('nom-dots').innerHTML=Array.from({length:t.nomSlots},(_,i)=>`<div class="sdot ${i<t.nomUsed?'used':'avail'}"></div>`).join('');const btn=document.getElementById('nom-btn');if(btn){btn.disabled=avail<=0;btn.style.opacity=avail<=0?'.4':'1';}}
+function isPitcher(p){return p.pos==='SP'||p.pos==='RP';}
+function blockHtml(b){
+  const p=b.player;
+
+  const pct=Math.round((b.timerSec/b.timerMax)*100),hot=b.timerSec<=(mode==='slow'?300:5),mine=b.bidder===teams[myIdx].name;
+  return `<div class="block-card ${hot?'hot':''}${mine?' winning':''}"><div style="margin-bottom:5px"><div class="pname">${p.name}</div><div class="psub"><span class="pos-badge">${p.pos}</span>${p.team} · nom. ${b.nominator}</div></div><div class="bid-section"><div><div class="cbid" style="color:${mine?'#1D9E75':'var(--accent)'}">$${b.bid}</div><div class="bmeta">by <strong>${b.bidder}</strong>${mine?'<span class="me-tag">you</span>':''}</div></div><div class="twrap"><div class="tnum" style="color:${hot?'#E24B4A':'var(--text-primary)'}">${fmtTimer(b.timerSec)}</div><div class="tlbl">left</div></div><div style="display:flex;gap:4px;align-items:center;margin-left:3px"><input type="number" id="bi-${b.id}" value="${b.bid+1}" min="${b.bid+1}" max="${teams[myIdx].auctionBudget}" style="width:52px;padding:3px 5px;font-size:11px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary)"><button class="btn btn-accent btn-sm" onclick="placeBid(${b.id})">Bid</button><button class="btn btn-sm" onclick="qbid(${b.id},1)">+$1</button></div></div><div class="tbar-bg"><div class="tbar" style="width:${pct}%;background:${hot?'#E24B4A':'var(--accent)'}"></div></div></div>`;
+}
+function renderAllBlocks(){const col=document.getElementById('left-col');if(!col)return;col.innerHTML=activeBlocks.length?activeBlocks.map(b=>blockHtml(b)).join(''):'<div class="card" id="no-block"><div class="empty" style="padding:18px 0">No players on the block yet.</div></div>';}
+function tick(){const toSell=[];activeBlocks.forEach(b=>{b.timerSec--;if(b.timerSec<=0)toSell.push(b);else if(b.timerSec<=Math.floor(bidSec*.4))maybeBotBid(b);});toSell.forEach(b=>sellBlock(b));if(activeBlocks.length)renderAllBlocks();}
+function placeBid(id){const b=activeBlocks.find(x=>x.id===id);if(!b)return;const val=parseInt(document.getElementById('bi-'+id)?.value);if(isNaN(val)||val<=b.bid){alert('Bid must be higher.');return;}if(val>teams[myIdx].auctionBudget){alert('Not enough budget!');return;}b.bid=val;b.bidder=teams[myIdx].name;b.timerMax=bidSec;b.timerSec=bidSec;renderAllBlocks();renderATeams();}
+function qbid(id,amt){const b=activeBlocks.find(x=>x.id===id);if(!b)return;const nb=b.bid+amt;if(nb>teams[myIdx].auctionBudget){alert('Not enough budget!');return;}b.bid=nb;b.bidder=teams[myIdx].name;b.timerMax=bidSec;b.timerSec=bidSec;renderAllBlocks();renderATeams();}
+function nominatePlayer(){const t=teams[myIdx];if(t.nomUsed>=t.nomSlots){alert('No slots available.');return;}const hidden=document.getElementById('nom-player');const idx=parseInt(hidden?.value);if(isNaN(idx)||idx<0||idx>=availablePlayers.length)return;const ob=parseInt(document.getElementById('nom-bid')?.value)||1;const player=availablePlayers[idx];t.nomUsed++;startBlock({player,nominator:t.name,nomTeamIdx:myIdx,openBid:ob});availablePlayers.splice(idx,1);populatePlayerSelect();renderNomStatus();}
+function startBlock(item){const b={id:++blockId,player:item.player,bid:item.openBid,bidder:item.nominator,nominator:item.nominator,nomTeamIdx:item.nomTeamIdx,timerMax:nomSec,timerSec:nomSec};activeBlocks.push(b);renderAllBlocks();}
+function sellBlock(b){activeBlocks=activeBlocks.filter(x=>x.id!==b.id);const winner=teams.find(t=>t.name===b.bidder)||teams[0];winner.auctionBudget-=b.bid;assignToSlot(winner,b.player,b.bid,false);soldList.push({player:b.player,winner:winner.name,price:b.bid});const nt=teams[b.nomTeamIdx];if(nt&&nt.nomUsed>0)nt.nomUsed--;renderSold();renderATeams();renderBudgetBar();document.getElementById('at-budget').textContent=`$${teams[myIdx].auctionBudget} left`;renderRoster();renderNomStatus();renderAllBlocks();drainQ();}
+function drainQ(){queue=queue.filter(item=>{const t=teams[item.nomTeamIdx];if(t.nomUsed<t.nomSlots){t.nomUsed++;startBlock(item);return false;}return true;});renderQueue();}
+function maybeBotBid(b){if(Math.random()>.3)return;const bots=teams.filter(t=>t.name!==b.bidder&&t.name!==teams[myIdx].name&&t.auctionBudget>b.bid+1);if(!bots.length)return;const bot=bots[Math.floor(Math.random()*bots.length)];const nb=b.bid+Math.floor(Math.random()*5)+1;if(nb>bot.auctionBudget)return;b.bid=nb;b.bidder=bot.name;b.timerMax=bidSec;b.timerSec=bidSec;renderATeams();}
+function renderQueue(){const el=document.getElementById('q-list');if(!el)return;el.innerHTML=queue.length?queue.map((it,i)=>`<div class="qitem"><span style="font-size:10px;color:var(--text-secondary);min-width:12px">${i+1}</span><span class="qn">${it.player.name}</span><span class="qm">${it.player.pos} · ${it.player.team}</span><span style="font-size:10px;color:var(--text-secondary)">$${it.openBid}</span></div>`).join(''):'<div class="empty">Queue empty.</div>';}
+function renderSold(){const el=document.getElementById('sold-list');if(!el)return;if(!soldList.length){el.innerHTML='<div class="empty">No sales yet.</div>';return;}el.innerHTML=[...soldList].reverse().map(s=>{const isMe=s.winner===teams[myIdx].name;return `<div class="si2"><div><div class="sp2">${s.player.name}</div><div class="sm2">${s.player.pos} · ${s.winner}${isMe?'<span class="me-tag">you</span>':''}</div></div><div class="sprice">$${s.price}</div></div>`;}).join('');}
+function populatePlayerSelect(){const dd=document.getElementById('nom-dropdown');const hidden=document.getElementById('nom-player');const search=document.getElementById('nom-search');if(!dd)return;if(hidden)hidden.value='';if(search)search.value='';renderNomDropdown('');}  
+function renderNomDropdown(q){const dd=document.getElementById('nom-dropdown');if(!dd)return;const lower=q.toLowerCase();const filtered=availablePlayers.map((p,i)=>({p,i})).filter(({p})=>!q||p.name.toLowerCase().includes(lower)||p.pos.toLowerCase().includes(lower)||p.team.toLowerCase().includes(lower));dd.innerHTML=filtered.length?filtered.map(({p,i})=>`<div class="nom-opt" data-idx="${i}" onmousedown="selectNomPlayer(${i})">${p.name}<span class="nom-opt-meta">${p.pos} · ${p.team}</span></div>`).join(''):'<div class="nom-opt" style="color:var(--text-secondary);cursor:default">No results</div>';}
+function filterNomDropdown(){const q=document.getElementById('nom-search')?.value||'';renderNomDropdown(q);openNomDropdown();}
+function openNomDropdown(){const dd=document.getElementById('nom-dropdown');if(dd)dd.classList.add('open');}
+function closeNomDropdown(){const dd=document.getElementById('nom-dropdown');if(dd)dd.classList.remove('open');}
+function selectNomPlayer(idx){const p=availablePlayers[idx];if(!p)return;document.getElementById('nom-player').value=idx;document.getElementById('nom-search').value=`${p.name} · ${p.pos} · ${p.team}`;closeNomDropdown();}
+function toggleAP(){const el=document.getElementById('ap');if(el)el.style.display=el.style.display==='none'?'block':'none';}
+function applyAP(){nomSec=+document.getElementById('ap-nom').value||30;bidSec=+document.getElementById('ap-bid').value||30;activeBlocks.forEach(b=>{if(b.timerSec>bidSec){b.timerMax=bidSec;b.timerSec=bidSec;}});toggleAP();}
+function simulateBots(){setInterval(()=>{teams.forEach((t,i)=>{if(i===myIdx||t.nomUsed>=t.nomSlots||!availablePlayers.length||Math.random()>.28||t.auctionBudget<2)return;const idx=Math.floor(Math.random()*availablePlayers.length);const player=availablePlayers[idx];availablePlayers.splice(idx,1);populatePlayerSelect();t.nomUsed++;startBlock({player,nominator:t.name,nomTeamIdx:i,openBid:1});});},3500);}
+
+renderStepBar();
+</script>
+</body>
+</html>
