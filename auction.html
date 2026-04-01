@@ -181,6 +181,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg-tertiary
 <div class="screen active" id="setup-screen">
 <div style="max-width:540px;margin:0 auto;padding:20px 16px">
   <a href="index.html" class="logo" style="font-size:20px;margin-bottom:18px;display:block;text-decoration:none;color:inherit">Draft<span>Day</span></a>
+  <div id="live-data-status" style="font-size:11px;margin-bottom:14px;padding:6px 10px;border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-secondary)">⏳ Loading live MLB player data…</div>
   <div class="step-bar" id="step-bar"></div>
 
   <!-- Step 1: Auction -->
@@ -355,7 +356,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg-tertiary
 <script>
 const COLORS=['#C94B1A','#185FA5','#1D9E75','#BA7517','#993556','#534AB7','#A32D2D','#3B6D11','#0C447C','#5F5E5A','#2D8FA3','#7A5C2E','#6B3A8C','#2E6B45','#A05A2C','#3A5F8C','#8C3A5A','#5A8C3A','#8C7A2E','#2E3A8C'];
 const DNAMES=['My Team','BrewCrew','Sluggers Inc','The Bullpen','Diamond Dogs','Bases Loaded','Yard Work','K Street','The Rotation','Error 404','Dingers Only','The Closer','Shift Busters','Small Ball','Launch Angle','The Rebuild','Prospect Hype','Trade Bait','Buy Low','Sell High'];
-const ALL_PLAYERS=[
+let ALL_PLAYERS=[
   {name:'Shohei Ohtani',pos:'DH',team:'LAD',hr:44,avg:.310,rbi:130,sb:20},
   {name:'Freddie Freeman',pos:'1B',team:'LAD',hr:22,avg:.282,rbi:89,sb:5},
   {name:'Yordan Alvarez',pos:'OF',team:'HOU',hr:35,avg:.307,rbi:111,sb:2},
@@ -497,7 +498,7 @@ function blockHtml(b){
   const p=b.player;
 
   const pct=Math.round((b.timerSec/b.timerMax)*100),hot=b.timerSec<=(mode==='slow'?300:5),mine=b.bidder===teams[myIdx].name;
-  return `<div class="block-card ${hot?'hot':''}${mine?' winning':''}"><div style="margin-bottom:5px"><div class="pname">${p.name}</div><div class="psub"><span class="pos-badge">${p.pos}</span>${p.team} · nom. ${b.nominator}</div></div><div class="bid-section"><div><div class="cbid" style="color:${mine?'#1D9E75':'var(--accent)'}">$${b.bid}</div><div class="bmeta">by <strong>${b.bidder}</strong>${mine?'<span class="me-tag">you</span>':''}</div></div><div class="twrap"><div class="tnum" style="color:${hot?'#E24B4A':'var(--text-primary)'}">${fmtTimer(b.timerSec)}</div><div class="tlbl">left</div></div><div style="display:flex;gap:4px;align-items:center;margin-left:3px"><input type="number" id="bi-${b.id}" value="${b.bid+1}" min="${b.bid+1}" max="${teams[myIdx].auctionBudget}" style="width:52px;padding:3px 5px;font-size:11px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary)"><button class="btn btn-accent btn-sm" onclick="placeBid(${b.id})">Bid</button><button class="btn btn-sm" onclick="qbid(${b.id},1)">+$1</button></div></div><div class="tbar-bg"><div class="tbar" style="width:${pct}%;background:${hot?'#E24B4A':'var(--accent)'}"></div></div></div>`;
+  return `<div class="block-card ${hot?'hot':''}${mine?' winning':''}"><div style="margin-bottom:5px"><div class="pname">${p.name}</div><div class="psub"><span class="pos-badge">${p.pos}</span>${p.team} · nom. ${b.nominator}</div></div>${statsHtml(p)}<div class="bid-section"><div><div class="cbid" style="color:${mine?'#1D9E75':'var(--accent)'}">$${b.bid}</div><div class="bmeta">by <strong>${b.bidder}</strong>${mine?'<span class="me-tag">you</span>':''}</div></div><div class="twrap"><div class="tnum" style="color:${hot?'#E24B4A':'var(--text-primary)'}">${fmtTimer(b.timerSec)}</div><div class="tlbl">left</div></div><div style="display:flex;gap:4px;align-items:center;margin-left:3px"><input type="number" id="bi-${b.id}" value="${b.bid+1}" min="${b.bid+1}" max="${teams[myIdx].auctionBudget}" style="width:52px;padding:3px 5px;font-size:11px;border:.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary)"><button class="btn btn-accent btn-sm" onclick="placeBid(${b.id})">Bid</button><button class="btn btn-sm" onclick="qbid(${b.id},1)">+$1</button></div></div><div class="tbar-bg"><div class="tbar" style="width:${pct}%;background:${hot?'#E24B4A':'var(--accent)'}"></div></div></div>`;
 }
 function renderAllBlocks(){const col=document.getElementById('left-col');if(!col)return;col.innerHTML=activeBlocks.length?activeBlocks.map(b=>blockHtml(b)).join(''):'<div class="card" id="no-block"><div class="empty" style="padding:18px 0">No players on the block yet.</div></div>';}
 function tick(){const toSell=[];activeBlocks.forEach(b=>{b.timerSec--;if(b.timerSec<=0)toSell.push(b);else if(b.timerSec<=Math.floor(bidSec*.4))maybeBotBid(b);});toSell.forEach(b=>sellBlock(b));if(activeBlocks.length)renderAllBlocks();}
@@ -510,8 +511,8 @@ function drainQ(){queue=queue.filter(item=>{const t=teams[item.nomTeamIdx];if(t.
 function maybeBotBid(b){if(Math.random()>.3)return;const bots=teams.filter(t=>t.name!==b.bidder&&t.name!==teams[myIdx].name&&t.auctionBudget>b.bid+1);if(!bots.length)return;const bot=bots[Math.floor(Math.random()*bots.length)];const nb=b.bid+Math.floor(Math.random()*5)+1;if(nb>bot.auctionBudget)return;b.bid=nb;b.bidder=bot.name;b.timerMax=bidSec;b.timerSec=bidSec;renderATeams();}
 function renderQueue(){const el=document.getElementById('q-list');if(!el)return;el.innerHTML=queue.length?queue.map((it,i)=>`<div class="qitem"><span style="font-size:10px;color:var(--text-secondary);min-width:12px">${i+1}</span><span class="qn">${it.player.name}</span><span class="qm">${it.player.pos} · ${it.player.team}</span><span style="font-size:10px;color:var(--text-secondary)">$${it.openBid}</span></div>`).join(''):'<div class="empty">Queue empty.</div>';}
 function renderSold(){const el=document.getElementById('sold-list');if(!el)return;if(!soldList.length){el.innerHTML='<div class="empty">No sales yet.</div>';return;}el.innerHTML=[...soldList].reverse().map(s=>{const isMe=s.winner===teams[myIdx].name;return `<div class="si2"><div><div class="sp2">${s.player.name}</div><div class="sm2">${s.player.pos} · ${s.winner}${isMe?'<span class="me-tag">you</span>':''}</div></div><div class="sprice">$${s.price}</div></div>`;}).join('');}
-function populatePlayerSelect(){const dd=document.getElementById('nom-dropdown');const hidden=document.getElementById('nom-player');const search=document.getElementById('nom-search');if(!dd)return;if(hidden)hidden.value='';if(search)search.value='';renderNomDropdown('');}  
-function renderNomDropdown(q){const dd=document.getElementById('nom-dropdown');if(!dd)return;const lower=q.toLowerCase();const filtered=availablePlayers.map((p,i)=>({p,i})).filter(({p})=>!q||p.name.toLowerCase().includes(lower)||p.pos.toLowerCase().includes(lower)||p.team.toLowerCase().includes(lower));dd.innerHTML=filtered.length?filtered.map(({p,i})=>`<div class="nom-opt" data-idx="${i}" onmousedown="selectNomPlayer(${i})">${p.name}<span class="nom-opt-meta">${p.pos} · ${p.team}</span></div>`).join(''):'<div class="nom-opt" style="color:var(--text-secondary);cursor:default">No results</div>';}
+function populatePlayerSelect(){const dd=document.getElementById('nom-dropdown');const hidden=document.getElementById('nom-player');const search=document.getElementById('nom-search');if(!dd)return;if(hidden)hidden.value='';if(search){search.value='';search.placeholder=`Search ${availablePlayers.length} players…`;}renderNomDropdown('');}
+function renderNomDropdown(q){const dd=document.getElementById('nom-dropdown');if(!dd)return;if(!q){dd.innerHTML=`<div class="nom-opt" style="color:var(--text-secondary);cursor:default">Search ${availablePlayers.length} available players…</div>`;return;}const lower=q.toLowerCase();const filtered=availablePlayers.map((p,i)=>({p,i})).filter(({p})=>p.name.toLowerCase().includes(lower)||p.pos.toLowerCase().includes(lower)||p.team.toLowerCase().includes(lower));const shown=filtered.slice(0,50);dd.innerHTML=shown.length?(shown.map(({p,i})=>`<div class="nom-opt" data-idx="${i}" onmousedown="selectNomPlayer(${i})">${p.name}<span class="nom-opt-meta">${p.pos} · ${p.team}</span></div>`).join('')+(filtered.length>50?`<div class="nom-opt" style="color:var(--text-secondary);cursor:default;font-style:italic">+${filtered.length-50} more — keep typing</div>`:'')):'<div class="nom-opt" style="color:var(--text-secondary);cursor:default">No results</div>';}
 function filterNomDropdown(){const q=document.getElementById('nom-search')?.value||'';renderNomDropdown(q);openNomDropdown();}
 function openNomDropdown(){const dd=document.getElementById('nom-dropdown');if(dd)dd.classList.add('open');}
 function closeNomDropdown(){const dd=document.getElementById('nom-dropdown');if(dd)dd.classList.remove('open');}
@@ -520,7 +521,109 @@ function toggleAP(){const el=document.getElementById('ap');if(el)el.style.displa
 function applyAP(){nomSec=+document.getElementById('ap-nom').value||30;bidSec=+document.getElementById('ap-bid').value||30;activeBlocks.forEach(b=>{if(b.timerSec>bidSec){b.timerMax=bidSec;b.timerSec=bidSec;}});toggleAP();}
 function simulateBots(){setInterval(()=>{teams.forEach((t,i)=>{if(i===myIdx||t.nomUsed>=t.nomSlots||!availablePlayers.length||Math.random()>.28||t.auctionBudget<2)return;const idx=Math.floor(Math.random()*availablePlayers.length);const player=availablePlayers[idx];availablePlayers.splice(idx,1);populatePlayerSelect();t.nomUsed++;startBlock({player,nominator:t.name,nomTeamIdx:i,openBid:1});});},3500);}
 
+function statsHtml(p){
+  const fmt=(v,d=0)=>v!=null?Number(v).toFixed(d):'—';
+  const fmtAvg=v=>v!=null?'.'+String(Math.round(v*1000)).padStart(3,'0'):'—';
+  if(p.pos==='SP')return`<div class="stats-row"><div class="stat-box"><div class="stat-val">${fmt(p.era,2)}</div><div class="stat-lbl">ERA</div></div><div class="stat-box"><div class="stat-val">${fmt(p.k)}</div><div class="stat-lbl">K</div></div><div class="stat-box"><div class="stat-val">${fmt(p.w)}</div><div class="stat-lbl">W</div></div><div class="stat-box"><div class="stat-val">${p.ip!=null?p.ip:'—'}</div><div class="stat-lbl">IP</div></div></div>`;
+  if(p.pos==='RP')return`<div class="stats-row"><div class="stat-box"><div class="stat-val">${fmt(p.era,2)}</div><div class="stat-lbl">ERA</div></div><div class="stat-box"><div class="stat-val">${fmt(p.sv)}</div><div class="stat-lbl">SV</div></div><div class="stat-box"><div class="stat-val">${fmt(p.k)}</div><div class="stat-lbl">K</div></div><div class="stat-box"><div class="stat-val">${fmt(p.w)}</div><div class="stat-lbl">W</div></div></div>`;
+  return`<div class="stats-row"><div class="stat-box"><div class="stat-val">${fmt(p.hr)}</div><div class="stat-lbl">HR</div></div><div class="stat-box"><div class="stat-val">${fmtAvg(p.avg)}</div><div class="stat-lbl">AVG</div></div><div class="stat-box"><div class="stat-val">${fmt(p.rbi)}</div><div class="stat-lbl">RBI</div></div><div class="stat-box"><div class="stat-val">${fmt(p.sb)}</div><div class="stat-lbl">SB</div></div></div>`;
+}
+
+function normalizePos(abbr){
+  if(['LF','CF','RF'].includes(abbr))return'OF';
+  if(abbr==='TWP')return'DH';
+  return abbr||'UTIL';
+}
+
+async function fetchMLBPlayers(season){
+  const BASE='https://statsapi.mlb.com/api/v1';
+  const [pr,hr,ptr]=await Promise.all([
+    fetch(`${BASE}/sports/1/players?season=${season}`),
+    fetch(`${BASE}/stats?stats=season&group=hitting&season=${season}&playerPool=ALL&gameType=R&limit=3000`),
+    fetch(`${BASE}/stats?stats=season&group=pitching&season=${season}&playerPool=ALL&gameType=R&limit=3000`)
+  ]);
+  const [pd,hd,ptd]=await Promise.all([
+    pr.ok?pr.json():Promise.resolve(null),
+    hr.ok?hr.json():Promise.resolve(null),
+    ptr.ok?ptr.json():Promise.resolve(null)
+  ]);
+  if(!pd)throw new Error('Player roster unavailable');
+
+  const posMap={},teamMap={};
+  (pd.people||[]).forEach(p=>{
+    posMap[p.id]=normalizePos(p.primaryPosition?.abbreviation);
+    teamMap[p.id]=p.currentTeam?.abbreviation||'';
+  });
+
+  const pitcherRole={};
+  (ptd?.stats?.[0]?.splits||[]).forEach(s=>{
+    const pid=s.player?.id;if(!pid)return;
+    const gs=+(s.stat?.gamesStarted||0),gp=+(s.stat?.gamesPitched||s.stat?.gamesPlayed||0);
+    pitcherRole[pid]=(gs>=5&&gp>0&&gs/gp>=0.5)?'SP':'RP';
+  });
+
+  const result=[],seen=new Set();
+
+  (hd?.stats?.[0]?.splits||[]).forEach(s=>{
+    const pid=s.player?.id;if(!pid||seen.has(pid))return;
+    const pos=posMap[pid]||'UTIL';
+    if(['SP','RP','P'].includes(pos))return;
+    const st=s.stat||{};
+    seen.add(pid);
+    result.push({name:s.player.fullName,pos,team:s.team?.abbreviation||teamMap[pid]||'',
+      hr:st.homeRuns!=null?+st.homeRuns:null,avg:st.avg!=null?parseFloat(st.avg):null,
+      rbi:st.rbi!=null?+st.rbi:null,sb:st.stolenBases!=null?+st.stolenBases:null});
+  });
+
+  (ptd?.stats?.[0]?.splits||[]).forEach(s=>{
+    const pid=s.player?.id;if(!pid||seen.has(pid))return;
+    const pos=pitcherRole[pid]||(posMap[pid]==='SP'?'SP':'RP');
+    const st=s.stat||{};
+    seen.add(pid);
+    result.push({name:s.player.fullName,pos,team:s.team?.abbreviation||teamMap[pid]||'',
+      era:st.era!=null?parseFloat(st.era):null,k:st.strikeOuts!=null?+st.strikeOuts:null,
+      w:st.wins!=null?+st.wins:null,sv:st.saves!=null?+st.saves:null,ip:st.inningsPitched||null});
+  });
+
+  // Add rostered players without stats (prospects, injured, etc.)
+  (pd.people||[]).forEach(p=>{
+    if(seen.has(p.id))return;
+    const pos=posMap[p.id];if(!pos||pos==='UTIL'||!teamMap[p.id])return;
+    const isPitcher=['SP','RP','P'].includes(pos);
+    const entry={name:p.fullName,pos:pos==='P'?'RP':pos,team:teamMap[p.id]};
+    if(isPitcher){entry.era=null;entry.k=null;entry.w=null;entry.sv=null;}
+    else{entry.hr=null;entry.avg=null;entry.rbi=null;entry.sb=null;}
+    result.push(entry);seen.add(p.id);
+  });
+
+  return result;
+}
+
+async function initLiveData(){
+  const el=document.getElementById('live-data-status');
+  const YEAR=new Date().getFullYear();
+  let usedYear=YEAR;
+  try{
+    let players=await fetchMLBPlayers(YEAR);
+    if(players.length<100){usedYear=YEAR-1;players=await fetchMLBPlayers(YEAR-1);}
+    if(players.length>0){
+      ALL_PLAYERS=players;
+      if(el){el.textContent=`✓ ${players.length} players loaded from MLB Stats API (${usedYear} season)`;el.style.color='var(--text-success)';el.style.background='var(--bg-success)';}
+      // If auction already started, refresh the available pool
+      if(document.getElementById('auction-screen')?.classList.contains('active')){
+        const kn=keptNames();availablePlayers=ALL_PLAYERS.filter(p=>!kn.has(p.name));populatePlayerSelect();
+      }}
+    }else{
+      if(el){el.textContent='⚠ Using built-in player list (no live data available)';el.style.color='var(--text-warning)';el.style.background='var(--bg-warning)';}
+    }
+  }catch(e){
+    console.warn('MLB API error:',e);
+    if(el){el.textContent='⚠ Using built-in player list (live data unavailable)';el.style.color='var(--text-warning)';el.style.background='var(--bg-warning)';}
+  }
+}
+
 renderStepBar();
+initLiveData();
 </script>
 </body>
 </html>
