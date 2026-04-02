@@ -181,7 +181,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg-tertiary
 <div class="screen active" id="setup-screen">
 <div style="max-width:540px;margin:0 auto;padding:20px 16px">
   <a href="index.html" class="logo" style="font-size:20px;margin-bottom:18px;display:block;text-decoration:none;color:inherit">Draft<span>Day</span></a>
-  <div id="live-data-status" style="font-size:11px;margin-bottom:14px;padding:6px 10px;border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-secondary)">⏳ Loading live MLB player data…</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+    <div id="live-data-status" style="flex:1;font-size:11px;padding:6px 10px;border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-secondary)">⏳ Loading player data…</div>
+    <button id="refresh-players-btn" class="btn btn-sm" onclick="forceRefreshPlayers()" style="font-size:11px;padding:4px 10px;flex-shrink:0" title="Force re-fetch from MLB API">↻ Refresh</button>
+  </div>
   <div class="step-bar" id="step-bar"></div>
 
   <!-- Step 1: Auction -->
@@ -599,26 +602,150 @@ async function fetchMLBPlayers(season){
   return result;
 }
 
+const PLAYER_CACHE_KEY='draftday_players_v1';
+const PLAYER_CACHE_TS_KEY='draftday_players_ts_v1';
+const PLAYER_CACHE_YEAR_KEY='draftday_players_year_v1';
+const CACHE_TTL_MS=24*60*60*1000;      // serve from cache for up to 24 h
+const BG_REFRESH_MS=60*60*1000;        // silently re-fetch after 1 h
+
+function saveCachedPlayers(players,year){
+  try{
+    localStorage.setItem(PLAYER_CACHE_KEY,JSON.stringify(players));
+    localStorage.setItem(PLAYER_CACHE_TS_KEY,String(Date.now()));
+    localStorage.setItem(PLAYER_CACHE_YEAR_KEY,String(year));
+  }catch(e){console.warn('Cache write failed:',e);}
+}
+
+function loadCachedPlayers(year){
+  try{
+    const cachedYear=parseInt(localStorage.getItem(PLAYER_CACHE_YEAR_KEY));
+    const cachedTs=parseInt(localStorage.getItem(PLAYER_CACHE_TS_KEY));
+    const raw=localStorage.getItem(PLAYER_CACHE_KEY);
+    if(!raw||cachedYear!==year||isNaN(cachedTs)||(Date.now()-cachedTs)>CACHE_TTL_MS)return null;
+    const players=JSON.parse(raw);
+    return players.length>100?{players,ts:cachedTs}:null;
+  }catch(e){return null;}
+}
+
+function applyPlayers(players){
+  ALL_PLAYERS=players;
+  if(document.getElementById('auction-screen')?.classList.contains('active')){
+    const kn=keptNames();availablePlayers=ALL_PLAYERS.filter(p=>!kn.has(p.name));populatePlayerSelect();
+  }
+}
+
+function setStatusOk(el,msg){if(!el)return;el.textContent=msg;el.style.color='var(--text-success)';el.style.background='var(--bg-success)';}
+function setStatusWarn(el,msg){if(!el)return;el.textContent=msg;el.style.color='var(--text-warning)';el.style.background='var(--bg-warning)';}
+function setStatusInfo(el,msg){if(!el)return;el.textContent=msg;el.style.color='var(--text-secondary)';el.style.background='var(--bg-secondary)';}
+
+// Fetch from the pre-built players.json file hosted alongside the app
+async function fetchPlayersJson(){
+  const res=await fetch('players.json?_='+Date.now());
+  if(!res.ok)throw new Error(`players.json not found (${res.status})`);
+  const data=await res.json();
+  if(!Array.isArray(data.players)||data.players.length<100)throw new Error('players.json too small');
+  return{players:data.players,year:data.season||new Date().getFullYear(),generatedAt:data.generatedAt||null};
+}
+
+// Fall back to live MLB API (3 parallel requests)
+async function fetchAndCache(year){
+  let usedYear=year;
+  let players=await fetchMLBPlayers(year);
+  if(players.length<100){usedYear=year-1;players=await fetchMLBPlayers(year-1);}
+  if(players.length>0){saveCachedPlayers(players,usedYear);}
+  return{players,usedYear};
+}
+
+function mergeNewPlayers(freshPlayers){
+  const existingNames=new Set(ALL_PLAYERS.map(p=>p.name));
+  const newPlayers=freshPlayers.filter(p=>!existingNames.has(p.name));
+  if(!newPlayers.length)return;
+  ALL_PLAYERS=freshPlayers;
+  if(document.getElementById('auction-screen')?.classList.contains('active')){
+    const kn=keptNames();
+    const inUse=new Set([...soldList.map(s=>s.player.name),...activeBlocks.map(b=>b.player.name)]);
+    const toAdd=newPlayers.filter(p=>!kn.has(p.name)&&!inUse.has(p.name));
+    if(toAdd.length){availablePlayers.push(...toAdd);populatePlayerSelect();}
+  }
+}
+
 async function initLiveData(){
   const el=document.getElementById('live-data-status');
   const YEAR=new Date().getFullYear();
-  let usedYear=YEAR;
+
+  // 1. Serve from localStorage instantly if still fresh
+  const cached=loadCachedPlayers(YEAR);
+  if(cached){
+    applyPlayers(cached.players);
+    const ageMin=Math.round((Date.now()-cached.ts)/60000);
+    const ageStr=ageMin<60?ageMin+'m ago':Math.round(ageMin/60)+'h ago';
+    setStatusOk(el,`✓ ${cached.players.length} players ready (cached ${ageStr})`);
+    // Background: silently re-load players.json after BG_REFRESH_MS
+    if(Date.now()-cached.ts>BG_REFRESH_MS){
+      fetchPlayersJson().then(({players,year})=>{
+        saveCachedPlayers(players,year);
+        mergeNewPlayers(players);
+        const added=players.length-cached.players.length;
+        setStatusOk(el,`✓ ${players.length} players${added>0?' · '+added+' new':''} (refreshed from players.json)`);
+      }).catch(()=>{}); // silent — cache is still valid
+    }
+    return;
+  }
+
+  // 2. Try players.json (fast — single CDN file fetch)
+  setStatusInfo(el,'⏳ Loading player data…');
   try{
-    let players=await fetchMLBPlayers(YEAR);
-    if(players.length<100){usedYear=YEAR-1;players=await fetchMLBPlayers(YEAR-1);}
+    const{players,year,generatedAt}=await fetchPlayersJson();
+    applyPlayers(players);
+    saveCachedPlayers(players,year);
+    const dateStr=generatedAt?new Date(generatedAt).toLocaleDateString():'';
+    setStatusOk(el,`✓ ${players.length} players loaded${dateStr?' (updated '+dateStr+')':''}`);
+    return;
+  }catch(e){
+    console.info('players.json not available, falling back to MLB API:',e.message);
+  }
+
+  // 3. Last resort — fetch direct from MLB Stats API
+  setStatusInfo(el,'⏳ Fetching from MLB Stats API…');
+  try{
+    const{players,usedYear}=await fetchAndCache(YEAR);
     if(players.length>0){
-      ALL_PLAYERS=players;
-      if(el){el.textContent=`✓ ${players.length} players loaded from MLB Stats API (${usedYear} season)`;el.style.color='var(--text-success)';el.style.background='var(--bg-success)';}
-      // If auction already started, refresh the available pool
-      if(document.getElementById('auction-screen')?.classList.contains('active')){
-        const kn=keptNames();availablePlayers=ALL_PLAYERS.filter(p=>!kn.has(p.name));populatePlayerSelect();
-      }}
+      applyPlayers(players);
+      setStatusOk(el,`✓ ${players.length} players loaded (${usedYear} season)`);
     }else{
-      if(el){el.textContent='⚠ Using built-in player list (no live data available)';el.style.color='var(--text-warning)';el.style.background='var(--bg-warning)';}
+      setStatusWarn(el,'⚠ Using built-in player list (no live data available)');
     }
   }catch(e){
     console.warn('MLB API error:',e);
-    if(el){el.textContent='⚠ Using built-in player list (live data unavailable)';el.style.color='var(--text-warning)';el.style.background='var(--bg-warning)';}
+    setStatusWarn(el,'⚠ Using built-in player list (live data unavailable)');
+  }
+}
+
+async function forceRefreshPlayers(){
+  const el=document.getElementById('live-data-status');
+  const btn=document.getElementById('refresh-players-btn');
+  if(btn){btn.disabled=true;btn.textContent='…';}
+  setStatusInfo(el,'⏳ Refreshing player data…');
+  try{
+    try{localStorage.removeItem(PLAYER_CACHE_KEY);localStorage.removeItem(PLAYER_CACHE_TS_KEY);localStorage.removeItem(PLAYER_CACHE_YEAR_KEY);}catch(e){}
+    const{players,year,generatedAt}=await fetchPlayersJson();
+    applyPlayers(players);
+    saveCachedPlayers(players,year);
+    const dateStr=generatedAt?new Date(generatedAt).toLocaleDateString():'';
+    setStatusOk(el,`✓ ${players.length} players refreshed${dateStr?' (updated '+dateStr+')':''}`);
+  }catch(e){
+    // players.json failed — fall back to live API
+    try{
+      const YEAR=new Date().getFullYear();
+      const{players,usedYear}=await fetchAndCache(YEAR);
+      if(players.length>0){applyPlayers(players);setStatusOk(el,`✓ ${players.length} players refreshed from MLB API (${usedYear})`);}
+      else{setStatusWarn(el,'⚠ Refresh failed — using existing player list');}
+    }catch(e2){
+      console.warn('Force refresh failed:',e2);
+      setStatusWarn(el,'⚠ Refresh failed — using existing player list');
+    }
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='↻ Refresh';}
   }
 }
 
