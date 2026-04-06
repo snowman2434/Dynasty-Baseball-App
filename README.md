@@ -1,50 +1,62 @@
-# DraftDay 🏟️
+# DraftDay — MLB Stats Proxy
 
-A fantasy baseball auction tool built as a personal project. Currently a frontend-only prototype — no backend or accounts required. Open the HTML files directly in any browser.
+A lightweight Express server that proxies requests to the MLB Stats API (`statsapi.mlb.com`) with CORS headers, so DraftDay's browser-based frontend can fetch live player data.
 
-## What it does
+## Endpoints
 
-- **Live auction room** — players go on the block, managers bid in real time with countdown timers
-- **Regular or slow auction modes** — timers in seconds (live draft) or hours (async over days)
-- **Multi-nomination support** — configure how many players each team can nominate simultaneously
-- **Keeper support** — assign keepers per team before the auction; prices auto-deduct from budgets
-- **Custom roster positions** — pick exactly which slots your league uses (C, 1B, 2B, SS, 3B, MI, CI, OF, UTIL, SP, RP, P, BENCH, MiLB)
-- **Full roster view** — see every team's roster with filled and empty position slots at any time
-- **Per-team settings** — individual team names, budgets, and nomination slot counts
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Health check |
+| GET | `/players?season=2025` | All active MLB players |
+| GET | `/players/:id` | One player's bio |
+| GET | `/players/:id/stats?group=hitting&season=2025` | Season stats for one player |
+| GET | `/teams` | All MLB teams |
+| GET | `/teams/:id/roster?rosterType=active` | Active roster for a team |
+| GET | `/stats/leaders?leaderCategories=homeRuns&limit=50` | League leaderboards |
+| GET | `/auction/players?season=2025` | **Main DraftDay endpoint** — all players + stats merged |
 
-## Files
-
-| File | Description |
-|------|-------------|
-| `index.html` | Landing page |
-| `auction.html` | Full auction tool (setup wizard → lobby → auction room) |
-
-## How to run
-
-No build step needed. Just open `index.html` in your browser, or serve locally:
+## Run locally
 
 ```bash
-# Python
-python -m http.server 8000
-
-# Node
-npx serve .
+npm install
+npm run dev        # uses nodemon, auto-restarts on changes
+# or
+npm start          # plain node
 ```
 
-Then visit `http://localhost:8000`.
+Server runs on `http://localhost:3001` by default.
 
-## Roadmap
+## Deploy to Render (free)
 
-- [ ] Real multiplayer via WebSockets (so league mates can actually join)
-- [ ] Player database with real stats and projections
-- [ ] Draft export (CSV / printable recap)
-- [ ] League history and year-over-year keeper tracking
-- [ ] Mobile layout
+1. Push this folder to a GitHub repo (can be the same `Dynasty-Baseball-App` repo, in a `/proxy` subfolder, or a separate repo)
+2. Go to [render.com](https://render.com) and sign in with GitHub
+3. Click **New → Web Service**
+4. Select your repo
+5. Set these fields:
+   - **Name**: `draftday-proxy` (or anything)
+   - **Runtime**: Node
+   - **Build command**: `npm install`
+   - **Start command**: `npm start`
+   - **Instance type**: Free
+6. Click **Create Web Service**
 
-## Tech stack
+Render will give you a URL like `https://draftday-proxy.onrender.com`. Paste that into `auction.html` as your `PROXY_BASE` value.
 
-Pure HTML, CSS, and vanilla JavaScript. No frameworks, no dependencies, no build tools.
+## Deploy to Vercel (free)
 
----
+```bash
+npm i -g vercel
+vercel
+```
 
-Built with [Claude](https://claude.ai).
+Follow the prompts. Vercel will give you a URL to use as `PROXY_BASE`.
+
+## Connect to DraftDay frontend
+
+In `auction.html`, find this line near the top of the `<script>`:
+
+```js
+const PROXY_BASE = 'http://localhost:3001'; // change to your deployed URL
+```
+
+Update it to your Render/Vercel URL when deployed.
