@@ -465,7 +465,13 @@ let auctionBidSec=30;
 // ─────────────────────────────────────────────────────────────
 async function init(){
   try{
-    const {data,error:authErr}=await sb.auth.getSession();
+    // Race getSession against a 6-second timeout so a paused/unreachable
+    // Supabase project never leaves the loading screen stuck.
+    const sessionResult=await Promise.race([
+      sb.auth.getSession(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),6000))
+    ]);
+    const {data,error:authErr}=sessionResult;
     const session=data?.session;
     if(authErr||!session){
       const params=new URLSearchParams(location.search);
