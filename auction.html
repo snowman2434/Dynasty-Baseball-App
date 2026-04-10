@@ -464,28 +464,34 @@ let auctionBidSec=30;
 // INIT
 // ─────────────────────────────────────────────────────────────
 async function init(){
-  const {data:{session}}=await sb.auth.getSession();
-  if(!session){
-    const params=new URLSearchParams(location.search);
-    const invite=params.get('invite')||'';
-    const redirect=encodeURIComponent('auction.html'+(invite?'?invite='+invite:''));
-    location.href='login.html?redirect='+redirect;
-    return;
-  }
-  currentUser=session.user;
-  const {data:profile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
-  currentProfile=profile;
+  try{
+    const {data,error:authErr}=await sb.auth.getSession();
+    const session=data?.session;
+    if(authErr||!session){
+      const params=new URLSearchParams(location.search);
+      const invite=params.get('invite')||'';
+      const redirect=encodeURIComponent('auction.html'+(invite?'?invite='+invite:''));
+      location.href='login.html?redirect='+redirect;
+      return;
+    }
+    currentUser=session.user;
+    const {data:profile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+    currentProfile=profile;
 
-  // Check for invite token in URL
-  const params=new URLSearchParams(location.search);
-  const inviteToken=params.get('invite');
-  if(inviteToken){
-    // Strip token from URL cleanly
-    history.replaceState({},'',location.pathname);
-    await handleInvite(inviteToken);
-    return;
+    // Check for invite token in URL
+    const params=new URLSearchParams(location.search);
+    const inviteToken=params.get('invite');
+    if(inviteToken){
+      // Strip token from URL cleanly
+      history.replaceState({},'',location.pathname);
+      await handleInvite(inviteToken);
+      return;
+    }
+    showDashboard();
+  }catch(e){
+    console.error('init error',e);
+    location.href='login.html';
   }
-  showDashboard();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1128,7 +1134,7 @@ function cleanupRealtime(){
 // ─────────────────────────────────────────────────────────────
 // START
 // ─────────────────────────────────────────────────────────────
-init();
+init().catch(e=>{console.error('init failed',e);location.href='login.html';});
 </script>
 </body>
 </html>
