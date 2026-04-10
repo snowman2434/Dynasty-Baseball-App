@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DraftDay — Sign in</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#C94B1A;--bg:#f0ede8;--card:#fff;--text:#141210;--muted:#6b6460;--border:rgba(20,18,16,.15);--err:#991b1b;--err-bg:#fef2f2}
+@media(prefers-color-scheme:dark){:root{--bg:#0c0a09;--card:#1c1917;--text:#fafaf9;--muted:#a8a29e;--border:rgba(250,250,249,.15)}}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{width:100%;max-width:380px}
+.logo{font-size:22px;font-weight:500;letter-spacing:.03em;text-align:center;margin-bottom:28px}
+.logo span{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);margin-bottom:24px}
+.tab{padding:10px;text-align:center;font-size:14px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.form{display:flex;flex-direction:column;gap:14px}
+.fg label{display:block;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:5px}
+.fg input{width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);outline:none}
+.fg input:focus{border-color:var(--accent)}
+.btn{padding:11px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;background:var(--accent);color:#fff;transition:background .15s}
+.btn:hover{background:#a83b13}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.err{font-size:12px;color:var(--err);background:var(--err-bg);padding:9px 12px;border-radius:7px;display:none}
+.err.show{display:block}
+.ok{font-size:12px;color:#166534;background:#f0fdf4;padding:9px 12px;border-radius:7px;display:none}
+.ok.show{display:block}
+.divider{text-align:center;font-size:12px;color:var(--muted);margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">Draft<span>Day</span></div>
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" id="tab-in" onclick="switchTab('in')">Sign in</div>
+      <div class="tab" id="tab-up" onclick="switchTab('up')">Create account</div>
+    </div>
+
+    <div id="err" class="err"></div>
+    <div id="ok" class="ok"></div>
+
+    <div id="form-in" class="form">
+      <div class="fg"><label>Email</label><input id="in-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+      <div class="fg"><label>Password</label><input id="in-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+      <button class="btn" onclick="signIn()">Sign in</button>
+    </div>
+
+    <div id="form-up" class="form" style="display:none">
+      <div class="fg"><label>Display name</label><input id="up-name" type="text" placeholder="Your name"/></div>
+      <div class="fg"><label>Email</label><input id="up-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+      <div class="fg"><label>Password</label><input id="up-pass" type="password" placeholder="At least 6 characters" autocomplete="new-password"/></div>
+      <button class="btn" onclick="signUp()">Create account</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Grab any redirect param from URL (e.g. ?redirect=auction.html%3Finvite%3Dabc123)
+const params = new URLSearchParams(location.search);
+const redirectTo = params.get('redirect') || 'auction.html';
+
+// If already logged in, redirect immediately
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) location.href = redirectTo;
+});
+
+function switchTab(t) {
+  document.getElementById('tab-in').classList.toggle('active', t === 'in');
+  document.getElementById('tab-up').classList.toggle('active', t === 'up');
+  document.getElementById('form-in').style.display = t === 'in' ? 'flex' : 'none';
+  document.getElementById('form-up').style.display = t === 'up' ? 'flex' : 'none';
+  clearMessages();
+}
+
+function showErr(msg) {
+  const el = document.getElementById('err');
+  el.textContent = msg; el.classList.add('show');
+  document.getElementById('ok').classList.remove('show');
+}
+function showOk(msg) {
+  const el = document.getElementById('ok');
+  el.textContent = msg; el.classList.add('show');
+  document.getElementById('err').classList.remove('show');
+}
+function clearMessages() {
+  document.getElementById('err').classList.remove('show');
+  document.getElementById('ok').classList.remove('show');
+}
+
+async function signIn() {
+  clearMessages();
+  const email = document.getElementById('in-email').value.trim();
+  const pass  = document.getElementById('in-pass').value;
+  if (!email || !pass) { showErr('Please fill in all fields.'); return; }
+  const btn = document.querySelector('#form-in .btn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false; btn.textContent = 'Sign in';
+  if (error) { showErr(error.message); return; }
+  location.href = redirectTo;
+}
+
+async function signUp() {
+  clearMessages();
+  const name  = document.getElementById('up-name').value.trim();
+  const email = document.getElementById('up-email').value.trim();
+  const pass  = document.getElementById('up-pass').value;
+  if (!name || !email || !pass) { showErr('Please fill in all fields.'); return; }
+  if (pass.length < 6) { showErr('Password must be at least 6 characters.'); return; }
+  const btn = document.querySelector('#form-up .btn');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { display_name: name } } });
+  btn.disabled = false; btn.textContent = 'Create account';
+  if (error) { showErr(error.message); return; }
+  // Update display name in profiles
+  if (data.user) {
+    await sb.from('profiles').update({ display_name: name }).eq('id', data.user.id);
+  }
+  if (data.session) {
+    location.href = redirectTo;
+  } else {
+    showOk('Account created! Check your email to confirm, then sign in.');
+  }
+}
+
+// Allow Enter key to submit
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const formIn = document.getElementById('form-in');
+  if (formIn.style.display !== 'none') signIn();
+  else signUp();
+});
+</script>
+</body>
+</html>
